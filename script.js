@@ -80,21 +80,37 @@ function handleMoodSelection(mood) {
         selectedBtn.style.transform = 'scale(0.95)';
     }
     
-    // Simulate response based on mood
-    setTimeout(() => {
-        const response = getMoodResponse(mood);
-        showChatResponse(response);
-    }, 500);
+    // Send mood to server and get response
+    sendMoodToServer(mood);
 }
 
-function getMoodResponse(mood) {
-    const responses = {
-        happy: "That's wonderful to hear! I'm glad you're feeling happy today. Positive emotions are so important for our wellbeing. Would you like to share what's making you feel this way?",
-        neutral: "It sounds like you're having an okay day. Sometimes that's perfectly normal - we don't always have to feel extreme emotions. Is there anything specific on your mind today?",
-        sad: "I'm sorry you're not feeling your best today. Remember that it's completely okay to feel this way sometimes - these emotions are valid. I'm here to listen without judgment. What's been troubling you?",
-        anxious: "I understand that anxiety can feel overwhelming. Take a deep breath with me for a moment. You're safe here in this space, and we can work through this together. What's making you feel anxious right now?"
-    };
-    return responses[mood] || "Thank you for sharing how you're feeling. I'm here to support you in any way I can. Every emotion is valid and deserves attention.";
+// Send mood to server
+async function sendMoodToServer(mood) {
+    try {
+        showTypingIndicator();
+        
+        // Replace with your server endpoint
+        const response = await fetch('/api/mood', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mood: mood })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
+        const data = await response.json();
+        hideTypingIndicator();
+        showChatResponse(data.message || 'Thank you for sharing your mood.');
+        
+    } catch (error) {
+        console.error('Error sending mood to server:', error);
+        hideTypingIndicator();
+        showChatResponse('I apologize, but I\'m having trouble connecting right now. Please try again in a moment.');
+    }
 }
 
 function showChatResponse(response) {
@@ -122,7 +138,8 @@ function showChatResponse(response) {
     `;
 }
 
-function sendMessage() {
+// Send message to server
+async function sendMessage() {
     const userInput = document.getElementById('userInput');
     if (!userInput) return;
     
@@ -135,12 +152,33 @@ function sendMessage() {
         // Show typing indicator
         showTypingIndicator();
         
-        // Generate AI response (simulated)
-        setTimeout(() => {
+        // Send to server
+        try {
+            // Replace with your server endpoint
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    message: message,
+                    timestamp: new Date().toISOString()
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
             hideTypingIndicator();
-            const response = generateAIResponse(message);
-            showAIMessage(response);
-        }, 1500);
+            showAIMessage(data.response || 'I received your message.');
+            
+        } catch (error) {
+            console.error('Error sending message to server:', error);
+            hideTypingIndicator();
+            showAIMessage('I apologize, but I\'m having trouble connecting right now. Please try again in a moment.');
+        }
         
         userInput.value = '';
     }
@@ -182,23 +220,26 @@ function showTypingIndicator() {
         </div>
     `;
     
-    // Add CSS for typing animation
-    const style = document.createElement('style');
-    style.textContent = `
-        .typing-indicator .message-content i {
-            animation: typing 1.4s infinite;
-            opacity: 0;
-        }
-        .typing-indicator .message-content i:nth-child(1) { animation-delay: 0s; }
-        .typing-indicator .message-content i:nth-child(2) { animation-delay: 0.2s; }
-        .typing-indicator .message-content i:nth-child(3) { animation-delay: 0.4s; }
-        
-        @keyframes typing {
-            0%, 60%, 100% { opacity: 0; }
-            30% { opacity: 1; }
-        }
-    `;
-    document.head.appendChild(style);
+    // Add CSS for typing animation if not already present
+    if (!document.getElementById('typing-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'typing-animation-style';
+        style.textContent = `
+            .typing-indicator .message-content i {
+                animation: typing 1.4s infinite;
+                opacity: 0;
+            }
+            .typing-indicator .message-content i:nth-child(1) { animation-delay: 0s; }
+            .typing-indicator .message-content i:nth-child(2) { animation-delay: 0.2s; }
+            .typing-indicator .message-content i:nth-child(3) { animation-delay: 0.4s; }
+            
+            @keyframes typing {
+                0%, 60%, 100% { opacity: 0; }
+                30% { opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
     const inputSection = document.querySelector('.chat-input-section');
     if (inputSection) {
@@ -238,49 +279,6 @@ function showAIMessage(response) {
             inputSection.scrollIntoView({ behavior: 'smooth' });
         }, 100);
     }
-}
-
-function generateAIResponse(message) {
-    const lowerMessage = message.toLowerCase();
-    
-    // Mental health supportive responses
-    if (lowerMessage.includes('anxious') || lowerMessage.includes('anxiety') || lowerMessage.includes('worried')) {
-        return "I hear that you're feeling anxious. Anxiety is a very common experience, and acknowledging these feelings is an important first step. Try taking slow, deep breaths - in through your nose for 4 counts, hold for 4, and out through your mouth for 6. What specifically is causing you to feel this way today?";
-    }
-    
-    if (lowerMessage.includes('sad') || lowerMessage.includes('depressed') || lowerMessage.includes('down') || lowerMessage.includes('low')) {
-        return "I'm sorry you're feeling sad right now. These feelings are completely valid, and it's okay to experience them. Sometimes talking about what's bothering us can help lighten the emotional load. Would you feel comfortable sharing what's been weighing on your mind lately?";
-    }
-    
-    if (lowerMessage.includes('stress') || lowerMessage.includes('overwhelmed') || lowerMessage.includes('pressure')) {
-        return "Feeling stressed or overwhelmed can be really challenging, but remember that you're stronger and more resilient than you might feel right now. Let's try to break down what's causing this stress into smaller, more manageable pieces. What are the main things that feel overwhelming to you today?";
-    }
-    
-    if (lowerMessage.includes('happy') || lowerMessage.includes('good') || lowerMessage.includes('great') || lowerMessage.includes('excited')) {
-        return "I'm so glad to hear you're feeling positive! It's wonderful when we can appreciate and acknowledge the good moments in our lives. These positive feelings are just as important to talk about as difficult ones. What's contributing to these happy feelings today?";
-    }
-    
-    if (lowerMessage.includes('sleep') || lowerMessage.includes('tired') || lowerMessage.includes('insomnia') || lowerMessage.includes('exhausted')) {
-        return "Sleep is incredibly important for our mental and physical health. Are you having trouble falling asleep, staying asleep, or are you feeling tired even after sleeping? Let's talk about what might be affecting your rest and some strategies that might help.";
-    }
-    
-    if (lowerMessage.includes('lonely') || lowerMessage.includes('alone') || lowerMessage.includes('isolated')) {
-        return "Feeling lonely can be really painful, and I want you to know that reaching out here shows strength. Even when we feel alone, we're more connected than we might realize. You're taking a positive step by talking about these feelings. What's making you feel most isolated right now?";
-    }
-    
-    if (lowerMessage.includes('angry') || lowerMessage.includes('frustrated') || lowerMessage.includes('mad')) {
-        return "Anger and frustration are natural emotions, and it's okay to feel them. Sometimes anger can be a sign that something important to us isn't being heard or respected. Let's explore what's behind these feelings. What situation or experience has triggered this anger for you?";
-    }
-    
-    // Default supportive response
-    const defaultResponses = [
-        "Thank you for sharing that with me. I can hear that this is important to you, and your feelings matter. Can you tell me more about how this is affecting your daily life?",
-        "I appreciate you opening up about this. It takes courage to share our thoughts and feelings. What would be most helpful for you to explore about this topic right now?",
-        "Your experience sounds meaningful, and I want to understand it better. How long have you been dealing with this, and what has it been like for you?",
-        "I'm here to listen and support you through this. Sometimes it helps to talk through our thoughts and feelings with someone who cares. What aspect of this feels most challenging for you?"
-    ];
-    
-    return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
 }
 
 // Helper function to escape HTML
@@ -465,3 +463,20 @@ const imageObserver = new IntersectionObserver((entries) => {
 });
 
 lazyImages.forEach(img => imageObserver.observe(img));
+
+// Optional: Function to set server endpoints dynamically
+function setServerEndpoints(config) {
+    window.MuMindConfig = {
+        chatEndpoint: config.chatEndpoint || '/api/chat',
+        moodEndpoint: config.moodEndpoint || '/api/mood',
+        ...config
+    };
+}
+
+// Use the config if available
+function getEndpoint(type) {
+    if (window.MuMindConfig) {
+        return type === 'chat' ? window.MuMindConfig.chatEndpoint : window.MuMindConfig.moodEndpoint;
+    }
+    return type === 'chat' ? '/api/chat' : '/api/mood';
+}
